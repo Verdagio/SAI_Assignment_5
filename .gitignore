@@ -1,0 +1,24 @@
+# R history files
+*.Rhistory
+*.Rapp.history
+
+# R data files
+*.rda
+
+# R studio files
+.Rproj.user/
+
+# R project files
+.Rproj
+
+# R executables
+*.Rout
+
+# R cache files
+*.RData
+
+# R temporary files
+*~
+
+# R dependencies
+packrat/
