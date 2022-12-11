@@ -1,0 +1,142 @@
+---
+title: "SAI-assignment-5"
+author: "Daniel Verdejo 22240224"
+date: "2022-12-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+You should summarise the above analysis in a short 6-8 page report. You are unlikely to be able to include all of the output/results in your report and you should not try to do so. 
+The report should give an overview of the results from your analysis, you will need to be concise and include only the key results/graphs/table that are needed to justify the conclusions drawn.
+You do not need to include the R code in the page limit for the report. But you should include all of your R code, to reproduce the full analysis, as an Appendix or separate script file. 
+Alternatively, if you wish to use RMarkdown to present your report then you should submit both the PDF and RMarkdown file in your submission, so that your full R code can be assessed. 
+Your code should include comments to explain what is being achieved at each step.
+Do not simply copy and paste the output from R, as this is often extremely inefficient. For example, the output from the lm() and step() provide lots of result you do not need. 
+Concisely present the results as though for a professional report.
+Graphs are expected to be legible, have relevant axis labels and titles, and possibly legends if they have many types of items displayed.
+A key focus of the assessment is of your understanding of the models/methods/algorithms, when it is appropriate to use them, how to apply them and how to interpret the results. Your presentation and R code will also be considered.
+
+
+```{r}
+library("tidyverse")
+library("tolerance")
+library("stats")
+```
+Amount Net dollar amount spent by customers in their latest purchase from this retailer;
+
+- *Recency* Number of months since the last purchase;
+- *Freq12* Number of purchases in the last 12 months;
+- *Dollar12* Dollar amount of purchases in the last 12 months;
+- *Freq24* Number of purchases in the last 24 months;
+- *Dollar24* Dollar amount of purchases in the last 24 months;
+- *Card* 1 for customers who have a private-label credit card with the retailer, 0 if not,
+
+where the *Amount* of money spent by a customer is the response variable, while the rest of variables
+are explanatory variables.
+
+```{r, echo=FALSE}
+data <- read.csv("./clothing.csv")
+
+head(data)
+names(data)
+summary(data)
+
+data <- data %>%
+  filter(! Amount %in% c(0,1506000))
+```
+
+Grab a subset excluding the Amount 
+```{r, echo=FALSE}
+clothing <- subset(data, select = -c(Amount))
+
+head(clothing)
+```
+
+scatterplot the data for the past 12 months
+
+```{r, echo=FALSE}
+clothing %>%
+    select(Freq12, Dollar12) %>%
+    cor()
+
+ggplot(clothing, aes(x = Freq12, y = Dollar12)) +
+  geom_point() +
+  labs(x = "Frequency of Purchases (12 months)",
+       y = "Total Dollar Amount Spent (12 months)",
+       title = "Spending on Clothing")
+```
+scatterplot the data for the past 12 months
+
+```{r, echo=FALSE}
+corCoef24 <- clothing %>%
+    select(Freq24, Dollar24) %>%
+    cor()
+
+ggplot(clothing, aes(x = Freq24, y = Dollar24)) +
+  geom_point(aes(x = Freq24)) +
+  labs(x = "Frequency of Purchases (24 months)",
+       y = "Total Dollar Amount Spent (24 months)",
+       title = "Spending on Clothing")
+
+
+```
+
+```{r}
+y <- data$Amount
+
+model <- lm(y ~ clothing$Recency +
+                clothing$Freq12 +
+                clothing$Dollar12 +
+                clothing$Freq24 +
+                clothing$Dollar24 +
+                clothing$Card, data = clothing)
+
+summary(model)
+
+cor(clothing$Recency, y)
+cor(clothing$Freq12, y)
+cor(clothing$Dollar12, y)
+cor(clothing$Freq24, y)
+cor(clothing$Dollar24, y)
+cor(clothing$Card, y)
+
+anovaRes <- anova(model)
+
+print(anovaRes$p.value)
+```
+
+
+On both plots we can see a positive linear correlation between the frequency and amount spent
+
+1. Using a subset selection procedure on the variables above, construct a model that best predict the Amount of money spent by a customer. Summarise the key features of the model fit and performance, and check the underlying assumptions.
+
+When evaluating the fit and performance of a statistical model, there are
+several key features that you should summarize and assess. These include:
+1. The model's overall fit to the data, which can be assessed using measures
+such as the R-squared value, the adjusted R-squared value, and the residual
+standard error.
+2. The statistical significance of the model's coefficients, which can be
+assessed using hypothesis tests or confidence intervals.
+3. The individual effects of the predictor variables on the response variable,
+which can be assessed using measures such as t-tests, p-values, and
+confidence intervals.
+4. The model's predictive accuracy, which can be assessed using measures
+such as the mean squared error (MSE), the root mean squared error (RMSE),
+and the mean absolute error (MAE).
+
+Additionally, when building and evaluating a statistical model, it is important to check the underlying assumptions of the model. These assumptions include:
+
+1. Linearity: The relationship between the predictor and response variables is linear.
+2. Normality: The residuals are normally distributed.
+3. Independence: The observations are independent of each other.
+4. Equal variances: The variances of the residuals are equal for all values of the predictor variable.
+5. Outlier detection: The data does not contain any extreme values or outliers.
+
+
+By summarizing the key features of the model fit and performance, and
+checking the underlying assumptions, you can gain a better understanding of the model's strengths and weaknesses, and make informed decisions about how to improve it.
