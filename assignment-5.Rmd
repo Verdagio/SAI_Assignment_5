@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
 ```
 
 ## R Markdown
@@ -23,9 +24,12 @@ A key focus of the assessment is of your understanding of the models/methods/alg
 
 
 ```{r}
-library("tidyverse")
-library("tolerance")
-library("stats")
+library(dplyr)
+library(tidyverse)
+library(tolerance)
+library(stats)
+library(car)
+library(polynom)
 ```
 Amount Net dollar amount spent by customers in their latest purchase from this retailer;
 
@@ -73,7 +77,7 @@ ggplot(clothing, aes(x = Freq12, y = Dollar12)) +
 scatterplot the data for the past 12 months
 
 ```{r, echo=FALSE}
-corCoef24 <- clothing %>%
+clothing %>%
     select(Freq24, Dollar24) %>%
     cor()
 
@@ -98,16 +102,11 @@ model <- lm(y ~ clothing$Recency +
 
 summary(model)
 
-cor(clothing$Recency, y)
-cor(clothing$Freq12, y)
-cor(clothing$Dollar12, y)
-cor(clothing$Freq24, y)
-cor(clothing$Dollar24, y)
-cor(clothing$Card, y)
 
-anovaRes <- anova(model)
+cor(clothing, y)
+cor(clothing)
 
-print(anovaRes$p.value)
+
 ```
 
 
@@ -140,3 +139,4 @@ Additionally, when building and evaluating a statistical model, it is important 
 
 By summarizing the key features of the model fit and performance, and
 checking the underlying assumptions, you can gain a better understanding of the model's strengths and weaknesses, and make informed decisions about how to improve it.
+
