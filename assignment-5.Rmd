@@ -8,6 +8,8 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+set.seed(22240224)
+
 ```
 
 ## R Markdown
@@ -25,11 +27,10 @@ A key focus of the assessment is of your understanding of the models/methods/alg
 
 ```{r}
 library(dplyr)
-library(tidyverse)
-library(tolerance)
 library(stats)
-library(car)
 library(polynom)
+library(boot)
+library(ggplot2)
 ```
 Amount Net dollar amount spent by customers in their latest purchase from this retailer;
 
@@ -61,51 +62,64 @@ clothing <- subset(data, select = -c(Amount))
 head(clothing)
 ```
 
-scatterplot the data for the past 12 months
 
-```{r, echo=FALSE}
-clothing %>%
-    select(Freq12, Dollar12) %>%
-    cor()
-
-ggplot(clothing, aes(x = Freq12, y = Dollar12)) +
-  geom_point() +
-  labs(x = "Frequency of Purchases (12 months)",
-       y = "Total Dollar Amount Spent (12 months)",
-       title = "Spending on Clothing")
-```
-scatterplot the data for the past 12 months
-
-```{r, echo=FALSE}
-clothing %>%
-    select(Freq24, Dollar24) %>%
-    cor()
-
-ggplot(clothing, aes(x = Freq24, y = Dollar24)) +
-  geom_point(aes(x = Freq24)) +
-  labs(x = "Frequency of Purchases (24 months)",
-       y = "Total Dollar Amount Spent (24 months)",
-       title = "Spending on Clothing")
-
-
-```
 
 ```{r}
-y <- data$Amount
 
-model <- lm(y ~ clothing$Recency +
-                clothing$Freq12 +
-                clothing$Dollar12 +
-                clothing$Freq24 +
-                clothing$Dollar24 +
-                clothing$Card, data = clothing)
+# First lets look at the correlation to measure the linear relatioship between our variables then visualise some of these relationships
+
+ggplot(data, aes(x = Recency, y = Amount)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Recency", y = "Amount", title = "Scatter Plot of Recency vs Amount")
+
+ggplot(data, aes(x = Card, y = Amount)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Card", y = "Amount", title = "Scatter Plot of Card vs Amount")
+
+ggplot(data, aes(x = Freq12, y = Amount)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Freq12", y = "Amount", title = "Scatter Plot of Freq12 vs Amount")
+
+ggplot(data, aes(x = Dollar12, y = Amount)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Dollar12", y = "Amount", title = "Scatter Plot of Dollar12 vs Amount")
+
+ggplot(data, aes(x = Freq24, y = Amount)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Freq24", y = "Amount", title = "Scatter Plot of Freq24 vs Amount")
+
+ggplot(data, aes(x = Dollar24, y = Amount)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Dollar24", y = "Amount", title = "Scatter Plot of Dollar24 vs Amount")
+
+data %>% select(Recency, Freq12, Dollar12, Freq24, Dollar24, Card) %>%
+  ggpairs(data, progress = FALSE)
+
+
+cor(data)
+
+
+# Fit a linear model 
+fit <- lm(Amount ~ Dollar12, data = data)
+summary(fit)
+
+model <- lm(Amount ~ Recency +
+              Freq12 +
+              Dollar12 +
+              Freq24 +
+              Dollar24 +
+              Card, data = data)
 
 summary(model)
 
 
-cor(clothing, y)
-cor(clothing)
-
+#coefficients -> coef(model)
 
 ```
 
