@@ -7,31 +7,26 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-
-set.seed(22240224)
-
 ```
 
-## R Markdown
-
-You should summarise the above analysis in a short 6-8 page report. You are unlikely to be able to include all of the output/results in your report and you should not try to do so. 
-The report should give an overview of the results from your analysis, you will need to be concise and include only the key results/graphs/table that are needed to justify the conclusions drawn.
-You do not need to include the R code in the page limit for the report. But you should include all of your R code, to reproduce the full analysis, as an Appendix or separate script file. 
-Alternatively, if you wish to use RMarkdown to present your report then you should submit both the PDF and RMarkdown file in your submission, so that your full R code can be assessed. 
-Your code should include comments to explain what is being achieved at each step.
-Do not simply copy and paste the output from R, as this is often extremely inefficient. For example, the output from the lm() and step() provide lots of result you do not need. 
-Concisely present the results as though for a professional report.
-Graphs are expected to be legible, have relevant axis labels and titles, and possibly legends if they have many types of items displayed.
-A key focus of the assessment is of your understanding of the models/methods/algorithms, when it is appropriate to use them, how to apply them and how to interpret the results. Your presentation and R code will also be considered.
-
-
-```{r}
+```{r include=FALSE}
 library(dplyr)
 library(stats)
-library(polynom)
 library(boot)
 library(ggplot2)
+library(GGally)
+library(moderndive)
+library(gridExtra)
 ```
+
+1. Question of Interest
+
+2. Subjective Impressions or Exploratory Analysis
+
+3. Formal Analysis
+
+4. Conclusion and Translation
+
 Amount Net dollar amount spent by customers in their latest purchase from this retailer;
 
 - *Recency* Number of months since the last purchase;
@@ -55,76 +50,219 @@ data <- data %>%
   filter(! Amount %in% c(0,1506000))
 ```
 
-Grab a subset excluding the Amount 
-```{r, echo=FALSE}
-clothing <- subset(data, select = -c(Amount))
+Lets first visualise the correlation and relationship between the explanatory variables and the target variable:
 
-head(clothing)
-```
-
-
-
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 # First lets look at the correlation to measure the linear relatioship between our variables then visualise some of these relationships
 
-ggplot(data, aes(x = Recency, y = Amount)) +
+sp1 <- ggplot(data, aes(x = Recency, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
   labs(x = "Recency", y = "Amount", title = "Scatter Plot of Recency vs Amount")
 
-ggplot(data, aes(x = Card, y = Amount)) +
+sp2 <- ggplot(data, aes(x = Card, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
   labs(x = "Card", y = "Amount", title = "Scatter Plot of Card vs Amount")
 
-ggplot(data, aes(x = Freq12, y = Amount)) +
+sp3 <- ggplot(data, aes(x = Freq12, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
   labs(x = "Freq12", y = "Amount", title = "Scatter Plot of Freq12 vs Amount")
 
-ggplot(data, aes(x = Dollar12, y = Amount)) +
+sp4 <- ggplot(data, aes(x = Dollar12, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
   labs(x = "Dollar12", y = "Amount", title = "Scatter Plot of Dollar12 vs Amount")
 
-ggplot(data, aes(x = Freq24, y = Amount)) +
+sp5 <- ggplot(data, aes(x = Freq24, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
   labs(x = "Freq24", y = "Amount", title = "Scatter Plot of Freq24 vs Amount")
 
-ggplot(data, aes(x = Dollar24, y = Amount)) +
+sp6 <- ggplot(data, aes(x = Dollar24, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
   labs(x = "Dollar24", y = "Amount", title = "Scatter Plot of Dollar24 vs Amount")
 
-data %>% select(Recency, Freq12, Dollar12, Freq24, Dollar24, Card) %>%
-  ggpairs(data, progress = FALSE)
+grid.arrange(grobs= list(sp1,sp2,sp3,sp4,sp5,sp6), ncols=3, top="Linear relationships of explanatory variables vs Amount" )
 
+
+data %>% ggpairs(data, progress = FALSE)
 
 cor(data)
 
 
-# Fit a linear model 
-fit <- lm(Amount ~ Dollar12, data = data)
-summary(fit)
 
-model <- lm(Amount ~ Recency +
-              Freq12 +
-              Dollar12 +
-              Freq24 +
-              Dollar24 +
-              Card, data = data)
+```
+As we can see from the scatter plot of explanatory variables vs the target variable Amount there are linear relationships between the explanatory variables and the target variable.
+
+Recency has a negative linear relationship while the Dollar12, and Dollar24 have positive linear relationships with the target variable, and the rest have weak relationships with the target variable. The Dollar12 and Dollar24 Have highly positive relationships while Amount vs Card, Freq12, and Freq24 all have weak relationships: In this case, the line suggests that the explanatory variables have little to no effect on the target variable. This is backed up by the weak correlation values we see between the Freq12 / Freq24 variables and Amount. But, they appear to have strong correlation to Dollar12 / Dollar24, and as such we should explore their relationships.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+fp12 <- ggplot(data, aes(x = Freq12, y = Dollar12)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Freq12", y = "Dollar12", title = "Scatter Plot of Freq12 vs Dollar12")
+
+fp24 <- ggplot(data, aes(x = Freq24, y = Dollar24)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Freq24", y = "Dollar24", title = "Scatter Plot of Freq24 vs Dollar24")
+
+grid.arrange(grobs = list(fp12, fp24), ncols = 2, top = "Linear relationship between Freq vs Dollar")
+```
+As we can see, there is a linear relationship between the Freq12 and Dollar12 explanatory variables, as well as Freq24 and Dollar24 explanatory variables. This is backed up by their moderate correlations with each other: 
+- Freq12 and Dollar12: 0.556
+- Freq24 and Dollar24: 0.596
+
+The Dollar 12, and Dollar24 both have strong correlations to the target variable Amount, with the Dollar12 being slightly stronger.
+The Dollar12 and Dollar24 features also have a strong correlation between each other, which could indicate that they could both be measuring the same underlying concept.
+The Freq12 and Freq24 also have a strong correlation between each other, and a weak correlation to the target variable, again indicating that they could both be measuring the same underlying concept.
+The Recency is the only variable which has a negative correlation with all variables including the target variable.
+
+We should first see what we can find out when we apply all explanatory variables against the multiple linear regresssion model (MLR), this should indicate where improvements can be made.
+
+```{r}
+model <- lm(Amount ~ Recency + Freq12 + Dollar12 + Freq24 + Dollar24 + Card, data = data)
 
 summary(model)
 
+regression_table <- get_regression_table(model = model)
 
-#coefficients -> coef(model)
-
+regression_table
 ```
+### Observations of the model using all explanatory variables
+
+- Freq12 and Freq24 have extremely different coefficients, which given their strong positive association of 0.710 we may have expected them to be similar.
+- Dollar12 and Dollar24 also have very differing coefficients, again given their strong positive association of 0.827 we also would have expected them to be similar.
+- We can see that Dollar24, and Card have quite large p values despite them having moderate correlation values to the target variable this is somewhat contradictory of what we would expect.
+- Furthermore, if we inspect the confidence intervals for these two in particular, we see that they both include zero.
+
+If we look at the F-statistic we find that we have a large value for the F test statistic of 61.02 and a p value of 2.2e-16 which is lower than the 0.05 cutoff so its considered significant and we can reject the null hypothesis. All this is evidence to the explanatory variables and model being useful for explaining variation, so there is a contradiction from what discovered before.
+
+The reason we are seeing these contradictions is multicollinearity. Multicollinearity is where two explanatory variables are measuring the same underlying concept or linearly related. Its Generally good practice to exclude one of the two explanatory variables that have a strong correlation between each other from the model to improve the accuracy of our predictions but more importantly reduce or eradicate the contradictions we have just discovered. first we will experiment and see what the 3 different scenarios produce (i.e how accurate is our prediction?).
+
+Some findings to reinforce the decision to exclude expanatory variables are as follows:
+- Given that Dollar12 is in the model the Dollar24 feature does not appear to add any more useful information for predicting the Amount, this is shown by Dollar24 having a high p-value of 0.956 and 95% confidence interval (-14.667, 43.916) which includes zero.
+- We can also see that there is a strong correlation between Dollar12, and Dollar24 of ≈ 0.827 from the previous correlation plot. Therefore if Dollar12 is included in the model, then Dollar24 is not needed (Dollar12 is preferable as it has a stronger correlation to the target variable than Dollar24).
+- We see a similar observation can be found for the Freq12 and Freq24 features, there is a strong correlation between the two features of ≈ 0.710
 
 
+
+```{r}
+row12 <- data[12, ]
+print(row12)
+```
+lets do some predictions from our fitted model for row number 12 from our dataset:
+The actual value is 50, the predicted amount if we calculate using the estimate from above:
+
+We should note the LOW R squared value, seems to align with the correlation of the Freq & Dollar 24 values
 On both plots we can see a positive linear correlation between the frequency and amount spent
+```{r}
+paste("Predicted value: ", regression_table$estimate[1] + prod(regression_table$estimate[2:7]),
+    "  vs Actual value: ", row12$Amount)
+```
+As we can see the prediction is way off, lets try again without Freq24 and Dollar24
+
+```{r}
+
+model12 <- lm(Amount ~ Recency +
+              Freq12 +
+              Dollar12 +
+              Freq12 * Dollar12 +
+              Card, data = data)
+
+summary(model12)
+
+regTable12 <- get_regression_table(model = model12)
+```
+No real change in our R-squared error
+
+```{r}
+print(regTable12)
+paste("Predicted value: ", regTable12$estimate[1] + prod(regTable12$estimate[2:6]),
+    "  vs Actual value: ", row12$Amount)
+```
+Much closer! Lets check the 24 features and see how that compares
+
+```{r}
+
+model24 <- lm(Amount ~ Recency +
+              Freq24 +
+              Dollar24 +
+              Freq24 * Dollar24 +
+              Card, data = data)
+
+summary(model24)
+
+regTable12 <- get_regression_table(model = model24)
+```
+Based solely off the R-squared values, we can assume that this model will perform worse than the last model but lets make a prediction anyway.
+
+```{r}
+print(regTable12)
+paste("Predicted value: ", regTable12$estimate[1] + prod(regTable12$estimate[2:6]),
+    "  vs Actual value: ", row12$Amount)
+```
+Looks like its slightly worse, so we'll go with the Freq12 and Dollar12
+
+```{r}
+#set the seed and then run the bootstrap samples
+set.seed(22240224)
+modelFn <- function(data, i) {
+  m <- lm(Amount ~ Freq12 +
+            Dollar12 +
+            Freq12 * Dollar12 +
+            Card, data = data[i, ])
+  
+  return(coef(m))
+}
+
+results <- boot(data, modelFn, R = 10000)
+
+results
+
+conf_intervals <- boot.ci(boot.out = results, type =  c("norm", "basic", "perc", "bca"))
+
+conf_intervals
+```
+```{r message=FALSE, warning=FALSE}
+residuals <- residuals(model)
+
+# Combine the residuals with the data
+residuals_df <- cbind(data, residuals)
+
+rp1 <- ggplot(residuals_df, aes(x = Recency, y = residuals)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  xlab("Recency") +
+  ylab("Residuals") +
+  ggtitle("Residuals vs. Recency")
+rp2 <- ggplot(residuals_df, aes(x = Freq12, y = residuals)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  xlab("Freq12") +
+  ylab("Residuals") +
+  ggtitle("Residuals vs. Freq12")
+rp3 <- ggplot(residuals_df, aes(x = Dollar12, y = residuals)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  xlab("Dollar12") +
+  ylab("Residuals") +
+  ggtitle("Residuals vs. Dollar12")
+rp4 <- ggplot(residuals_df, aes(x = Card, y = residuals)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  xlab("Card") +
+  ylab("Residuals") +
+  ggtitle("Residuals vs. Card")
+
+grid.arrange(grobs= list(rp1,rp2,rp3,rp4), ncols=2, top="Residuals vs explanatory variables" )
+par(mfrow = c(2, 2))  # Set the layout of the plot to be 2x2
+plot(model12)
+```
 
 1. Using a subset selection procedure on the variables above, construct a model that best predict the Amount of money spent by a customer. Summarise the key features of the model fit and performance, and check the underlying assumptions.
 
@@ -153,4 +291,16 @@ Additionally, when building and evaluating a statistical model, it is important 
 
 By summarizing the key features of the model fit and performance, and
 checking the underlying assumptions, you can gain a better understanding of the model's strengths and weaknesses, and make informed decisions about how to improve it.
+
+Assumptions Underlying the Model: LINE
+1.Population relationship between the mean response and the
+features is linear (Linearity assumption);
+2.Sample is representative of the population and the subjects are
+independent (Independence assumption);
+3.Errors follow a normal distribution, centred about the regression
+line (Normality assumption);
+4.Variance of the errors is the same for any value of the explanatory
+variable (Equal Spreads assumption).
+
+
 
