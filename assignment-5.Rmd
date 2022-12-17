@@ -2,7 +2,7 @@
 title: "SAI-assignment-5"
 author: "Daniel Verdejo 22240224"
 date: "2022-12-10"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -11,12 +11,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r include=FALSE}
 library(dplyr)
+library(tidyverse)
 library(stats)
 library(boot)
 library(ggplot2)
 library(GGally)
 library(moderndive)
 library(gridExtra)
+library(leaps)
+library(glmnet)
 ```
 
 1. Question of Interest
@@ -27,26 +30,15 @@ library(gridExtra)
 
 4. Conclusion and Translation
 
-Amount Net dollar amount spent by customers in their latest purchase from this retailer;
-
-- *Recency* Number of months since the last purchase;
-- *Freq12* Number of purchases in the last 12 months;
-- *Dollar12* Dollar amount of purchases in the last 12 months;
-- *Freq24* Number of purchases in the last 24 months;
-- *Dollar24* Dollar amount of purchases in the last 24 months;
-- *Card* 1 for customers who have a private-label credit card with the retailer, 0 if not,
-
-where the *Amount* of money spent by a customer is the response variable, while the rest of variables
-are explanatory variables.
 
 ```{r, echo=FALSE}
-data <- read.csv("./clothing.csv")
+clothing <- read.csv("./clothing.csv")
 
-head(data)
-names(data)
-summary(data)
+head(clothing)
+names(clothing)
+summary(clothing)
 
-data <- data %>%
+clothing <- clothing %>%
   filter(! Amount %in% c(0,1506000))
 ```
 
@@ -56,64 +48,44 @@ Lets first visualise the correlation and relationship between the explanatory va
 
 # First lets look at the correlation to measure the linear relatioship between our variables then visualise some of these relationships
 
-sp1 <- ggplot(data, aes(x = Recency, y = Amount)) +
+sp1 <- ggplot(clothing, aes(x = Recency, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x = "Recency", y = "Amount", title = "Scatter Plot of Recency vs Amount")
+  labs(x = "Recency", y = "Amount", title = "Recency vs Amount")
 
-sp2 <- ggplot(data, aes(x = Card, y = Amount)) +
+sp2 <- ggplot(clothing, aes(x = Card, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x = "Card", y = "Amount", title = "Scatter Plot of Card vs Amount")
+  labs(x = "Card", y = "Amount", title = "Card vs Amount")
 
-sp3 <- ggplot(data, aes(x = Freq12, y = Amount)) +
+sp3 <- ggplot(clothing, aes(x = Freq12, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x = "Freq12", y = "Amount", title = "Scatter Plot of Freq12 vs Amount")
+  labs(x = "Freq12", y = "Amount", title = "Freq12 vs Amount")
 
-sp4 <- ggplot(data, aes(x = Dollar12, y = Amount)) +
+sp4 <- ggplot(clothing, aes(x = Dollar12, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x = "Dollar12", y = "Amount", title = "Scatter Plot of Dollar12 vs Amount")
+  labs(x = "Dollar12", y = "Amount", title = "Dollar12 vs Amount")
 
-sp5 <- ggplot(data, aes(x = Freq24, y = Amount)) +
+sp5 <- ggplot(clothing, aes(x = Freq24, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x = "Freq24", y = "Amount", title = "Scatter Plot of Freq24 vs Amount")
+  labs(x = "Freq24", y = "Amount", title = "Freq24 vs Amount")
 
-sp6 <- ggplot(data, aes(x = Dollar24, y = Amount)) +
+sp6 <- ggplot(clothing, aes(x = Dollar24, y = Amount)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x = "Dollar24", y = "Amount", title = "Scatter Plot of Dollar24 vs Amount")
+  labs(x = "Dollar24", y = "Amount", title = "Dollar24 vs Amount")
 
-grid.arrange(grobs= list(sp1,sp2,sp3,sp4,sp5,sp6), ncols=3, top="Linear relationships of explanatory variables vs Amount" )
-
-
-data %>% ggpairs(data, progress = FALSE)
-
-cor(data)
+grid.arrange(grobs= list(sp1,sp2,sp3,sp4,sp5,sp6), ncol=3, top="Scatter plots of explanatory variables vs Amount" )
 
 
-
+clothing %>% ggpairs(clothing, progress = FALSE)
 ```
 As we can see from the scatter plot of explanatory variables vs the target variable Amount there are linear relationships between the explanatory variables and the target variable.
 
-Recency has a negative linear relationship while the Dollar12, and Dollar24 have positive linear relationships with the target variable, and the rest have weak relationships with the target variable. The Dollar12 and Dollar24 Have highly positive relationships while Amount vs Card, Freq12, and Freq24 all have weak relationships: In this case, the line suggests that the explanatory variables have little to no effect on the target variable. This is backed up by the weak correlation values we see between the Freq12 / Freq24 variables and Amount. But, they appear to have strong correlation to Dollar12 / Dollar24, and as such we should explore their relationships.
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-fp12 <- ggplot(data, aes(x = Freq12, y = Dollar12)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(x = "Freq12", y = "Dollar12", title = "Scatter Plot of Freq12 vs Dollar12")
-
-fp24 <- ggplot(data, aes(x = Freq24, y = Dollar24)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(x = "Freq24", y = "Dollar24", title = "Scatter Plot of Freq24 vs Dollar24")
-
-grid.arrange(grobs = list(fp12, fp24), ncols = 2, top = "Linear relationship between Freq vs Dollar")
-```
-As we can see, there is a linear relationship between the Freq12 and Dollar12 explanatory variables, as well as Freq24 and Dollar24 explanatory variables. This is backed up by their moderate correlations with each other: 
+Recency has a negative linear relationship while the Dollar12, and Dollar24 have positive linear relationships with the target variable, and the rest have weak relationships with the target variable. The Dollar12 and Dollar24 Have highly positive relationships while Amount vs Card, Freq12, and Freq24 all have weak relationships: In this case, the line suggests that the explanatory variables have little to no effect on the target variable. This is backed up by the weak correlation values we see between the Freq12 / Freq24 variables and Amount. They appear to have moderate correlation to Dollar12 / Dollar24: 
 - Freq12 and Dollar12: 0.556
 - Freq24 and Dollar24: 0.596
 
@@ -125,7 +97,7 @@ The Recency is the only variable which has a negative correlation with all varia
 We should first see what we can find out when we apply all explanatory variables against the multiple linear regresssion model (MLR), this should indicate where improvements can be made.
 
 ```{r}
-model <- lm(Amount ~ Recency + Freq12 + Dollar12 + Freq24 + Dollar24 + Card, data = data)
+model <- lm(Amount ~ Recency + Freq12 + Dollar12 + Freq24 + Dollar24 + Card, data = clothing)
 
 summary(model)
 
@@ -133,7 +105,7 @@ regression_table <- get_regression_table(model = model)
 
 regression_table
 ```
-### Observations of the model using all explanatory variables
+### Observations of the model
 
 - Freq12 and Freq24 have extremely different coefficients, which given their strong positive association of 0.710 we may have expected them to be similar.
 - Dollar12 and Dollar24 also have very differing coefficients, again given their strong positive association of 0.827 we also would have expected them to be similar.
@@ -146,67 +118,99 @@ The reason we are seeing these contradictions is multicollinearity. Multicolline
 
 Some findings to reinforce the decision to exclude expanatory variables are as follows:
 - Given that Dollar12 is in the model the Dollar24 feature does not appear to add any more useful information for predicting the Amount, this is shown by Dollar24 having a high p-value of 0.956 and 95% confidence interval (-14.667, 43.916) which includes zero.
-- We can also see that there is a strong correlation between Dollar12, and Dollar24 of ≈ 0.827 from the previous correlation plot. Therefore if Dollar12 is included in the model, then Dollar24 is not needed (Dollar12 is preferable as it has a stronger correlation to the target variable than Dollar24).
-- We see a similar observation can be found for the Freq12 and Freq24 features, there is a strong correlation between the two features of ≈ 0.710
+- We can also see that there is a strong correlation between Dollar12, and Dollar24 of ~ 0.827 from the previous correlation plot. Therefore if Dollar12 is included in the model, then Dollar24 is not needed (Dollar12 is preferable as it has a stronger correlation to the target variable than Dollar24)(add note about overfitting).
+- We see a similar observation can be found for the Freq12 and Freq24 features, there is a strong correlation between the two features of ~ 0.710 again overfitting and same concept measured
 
 
 
-```{r}
-row12 <- data[12, ]
+```{r echo=FALSE}
+row12 <- clothing[12, ]
 print(row12)
 ```
 lets do some predictions from our fitted model for row number 12 from our dataset:
 The actual value is 50, the predicted amount if we calculate using the estimate from above:
 
-We should note the LOW R squared value, seems to align with the correlation of the Freq & Dollar 24 values
 On both plots we can see a positive linear correlation between the frequency and amount spent
 ```{r}
 paste("Predicted value: ", regression_table$estimate[1] + prod(regression_table$estimate[2:7]),
     "  vs Actual value: ", row12$Amount)
 ```
-As we can see the prediction is way off, lets try again without Freq24 and Dollar24
+The prediction is quite poor. This is likely due to some of the points we discussed earlier. 
+We will carry out feature subset selection techniques in order to choose the best model.
+
+
+First we will do the best subset regression
+```{r}
+best <- regsubsets(Amount ~ ., data = clothing)
+summary(best)
+```
+
+```{r echo=FALSE}
+
+best_adjr2_values <- summary(best)$adjr2
+best_bic_values <- summary(best)$bic
+best_r2_values <- summary(best)$rsq
+
+# Create a data frame with the number of features and the adjr2 values
+best_adjr2_df <- data.frame(Features = 1:length(best_adjr2_values), Value = best_adjr2_values)
+
+# Create a data frame with the number of features and the bic values
+best_bic_df <- data.frame(Features = 1:length(best_bic_values), Value = best_bic_values)
+
+# Create a data frame with the number of features and the r2 values
+best_r2_df <- data.frame(Features = 1:length(best_r2_values), Value = best_r2_values)
+
+# Plot the adjr2 values
+bp1 <-ggplot(best_adjr2_df, aes(x = Features, y = Value)) +
+  geom_point(size=2, color = "coral") + geom_line(size=1, color = "coral") +
+  labs(title = "Adjr2 Values", x = "Number of Features", y = "Value")
+
+# Plot the bic values
+bp2 <- ggplot(best_bic_df, aes(x = Features, y = Value)) +
+  geom_point(size=2, color = "forestgreen") + geom_line(size=1, color = "forestgreen") +
+  labs(title = "Bic Values", x = "Number of Features", y = "Value")
+
+# Plot the r2 values
+bp3 <- ggplot(best_r2_df, aes(x = Features, y = Value)) +
+  geom_point(size=2, color = "dodgerblue") + geom_line(size=1, color = "dodgerblue") +
+  labs(title = "R2 Values", x = "Number of Features", y = "Value")
+
+grid.arrange(bp1, bp2, bp3, ncol=3, top = "Best subset regression")
+```
 
 ```{r}
 
-model12 <- lm(Amount ~ Recency +
-              Freq12 +
-              Dollar12 +
-              Freq12 * Dollar12 +
-              Card, data = data)
+step(model, direction = "backward")   # backward selection
 
-summary(model12)
+step(model, direction = "both")       # stepwise backwards
 
-regTable12 <- get_regression_table(model = model12)
+
+min.model <- lm(Amount ~ 1, data = clothing) # smallest model to consider
+
+step(min.model, direction = "forward",   # forward selection
+     scope = list(lower = ~ 1,
+                  upper = ~ Recency + Freq12 + Dollar12 + Freq24 + Dollar24 + Card))
+
+step(min.model, direction = "both",    # stepwise forward
+     scope = list(lower = ~ 1,
+                  upper = ~ Recency + Freq12 + Dollar12 + Freq24 + Dollar24 + Card))
 ```
-No real change in our R-squared error
 
 ```{r}
-print(regTable12)
-paste("Predicted value: ", regTable12$estimate[1] + prod(regTable12$estimate[2:6]),
-    "  vs Actual value: ", row12$Amount)
+# Fit the model using glmnet() with the lasso method
+lasso <- glmnet(x = as.matrix(clothing[,-1]), y = clothing$Amount, alpha = 1, lambda = 10^seq(-3, 6, 0.1))
+
+plot(lasso, xvar = "lambda", label = TRUE)
 ```
-Much closer! Lets check the 24 features and see how that compares
 
-```{r}
+From the above model selection process we can see a clear indication that the lowest AIC of **418.6** consistently uses the model `Amount ~ Dollar12 + Freq12` in all selection processes `backward, stepwise backward, forward, stepwise forward`. We also see similiar information from the best regression and exhaustive 
 
-model24 <- lm(Amount ~ Recency +
-              Freq24 +
-              Dollar24 +
-              Freq24 * Dollar24 +
-              Card, data = data)
+Parsimony
+- It is desirable to find the simplest model required for the application, which is captured by the concept of parsimony:
+"If two competing models have statistically the same predictive ability then the parsimonious model is the one with the smaller number of parameters
+- Similar to the concept of Occam's Razor: "the simplest explanation is usually the right one"
 
-summary(model24)
-
-regTable12 <- get_regression_table(model = model24)
-```
-Based solely off the R-squared values, we can assume that this model will perform worse than the last model but lets make a prediction anyway.
-
-```{r}
-print(regTable12)
-paste("Predicted value: ", regTable12$estimate[1] + prod(regTable12$estimate[2:6]),
-    "  vs Actual value: ", row12$Amount)
-```
-Looks like its slightly worse, so we'll go with the Freq12 and Dollar12
+Boot strapping 10000 samples
 
 ```{r}
 #set the seed and then run the bootstrap samples
@@ -220,7 +224,7 @@ modelFn <- function(data, i) {
   return(coef(m))
 }
 
-results <- boot(data, modelFn, R = 10000)
+results <- boot(clothing, modelFn, R = 10000)
 
 results
 
@@ -228,11 +232,12 @@ conf_intervals <- boot.ci(boot.out = results, type =  c("norm", "basic", "perc",
 
 conf_intervals
 ```
-```{r message=FALSE, warning=FALSE}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 residuals <- residuals(model)
 
 # Combine the residuals with the data
-residuals_df <- cbind(data, residuals)
+residuals_df <- cbind(clothing, residuals)
 
 rp1 <- ggplot(residuals_df, aes(x = Recency, y = residuals)) +
   geom_point() +
@@ -261,8 +266,10 @@ rp4 <- ggplot(residuals_df, aes(x = Card, y = residuals)) +
 
 grid.arrange(grobs= list(rp1,rp2,rp3,rp4), ncols=2, top="Residuals vs explanatory variables" )
 par(mfrow = c(2, 2))  # Set the layout of the plot to be 2x2
-plot(model12)
+plot(model)
 ```
+
+
 
 1. Using a subset selection procedure on the variables above, construct a model that best predict the Amount of money spent by a customer. Summarise the key features of the model fit and performance, and check the underlying assumptions.
 
